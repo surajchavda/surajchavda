@@ -1,0 +1,60 @@
+name: Update Profile Summary Cards
+
+on:
+  schedule:
+    - cron: '0 06 * * *'
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate-and-pr:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Generate profile summary cards
+        uses: vn7n24fzkq/github-profile-summary-cards@release
+        with:
+          USERNAME: surajchavda
+
+      - name: Commit changes to generated branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B generated
+          git add cards/**/*.svg
+          git commit -m "chore: update profile summary cards" || echo "No changes to commit"
+
+      - name: Push generated branch
+        run: git push origin generated --force
+
+      - name: Create or update pull request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          branch: generated
+          base: main
+          title: chore: update profile summary cards
+          body: |
+            This automated PR updates the GitHub Profile Summary Cards for
+            `surajchavda` (daily / on-push).
+          labels: automated
+
+      - name: Auto-merge when checks pass
+        uses: pascalgn/automerge-action@v0.14.3
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          merge-method: squash
+
